@@ -4,42 +4,39 @@
 #include <unistd.h>
 #include "sen.h"
 
-/* Structure Capteur pour sauvegarder et restaurer */
+/* Structure Capteur */
 typedef struct capteur {
     float energie;
     int id_suivant;
     Paquet* buffer;
     int taille_buffer;
-    int termine;         // 0 = interruption, 1 = programme terminé
+    int termine;
+    int x, y; // coordonnées fixes
 } Capteur;
 
-/* Sauvegarde de l'état dans le fichier save.bin */
+/* Sauvegarde/restauration */
 void sauvegarder_etat(Capteur *c) {
     FILE *f = fopen("save.bin", "wb");
-    if (!f) {
-        printf("Erreur ouverture fichier pour sauvegarde\n");
-        return;
-    }
+    if (!f) return;
 
     fwrite(&c->energie, sizeof(float), 1, f);
     fwrite(&c->id_suivant, sizeof(int), 1, f);
     fwrite(&c->taille_buffer, sizeof(int), 1, f);
     fwrite(&c->termine, sizeof(int), 1, f);
+    fwrite(&c->x, sizeof(int), 1, f);
+    fwrite(&c->y, sizeof(int), 1, f);
 
-    Paquet* courant = c->buffer;
-    while (courant != NULL) {
-        fwrite(courant, sizeof(Paquet), 1, f);
-        courant = courant->suivant;
+    Paquet* cur = c->buffer;
+    while (cur) {
+        fwrite(cur, sizeof(Paquet), 1, f);
+        cur = cur->suivant;
     }
-
     fclose(f);
 }
 
-/* Restauration de l'état depuis save.bin */
 void restaurer_etat(Capteur *c) {
     FILE *f = fopen("save.bin", "rb");
     if (!f) {
-        // Pas de sauvegarde → démarrage normal
         c->energie = 5.0f;
         c->id_suivant = 1;
         c->buffer = NULL;
@@ -52,32 +49,28 @@ void restaurer_etat(Capteur *c) {
     fread(&c->id_suivant, sizeof(int), 1, f);
     fread(&c->taille_buffer, sizeof(int), 1, f);
     fread(&c->termine, sizeof(int), 1, f);
+    fread(&c->x, sizeof(int), 1, f);
+    fread(&c->y, sizeof(int), 1, f);
 
     if (c->termine == 1) {
-        // Programme terminé → tout remettre à zéro
         c->energie = 5.0f;
         c->id_suivant = 1;
         c->taille_buffer = 0;
         c->buffer = NULL;
         c->termine = 0;
-        printf("[INFO] Programme terminé précédemment, redémarrage à zéro avec batterie 20 J.\n");
+        printf("[INFO] Redemarrage à zero avec batterie 5 J.\n");
     } else {
-        // Restauration normale du buffer
         Paquet* dernier = NULL;
         for (int i = 0; i < c->taille_buffer; i++) {
             Paquet* p = malloc(sizeof(Paquet));
             fread(p, sizeof(Paquet), 1, f);
             p->suivant = NULL;
-            if (dernier == NULL) {
-                c->buffer = p;
-            } else {
-                dernier->suivant = p;
-            }
+            if (!dernier) c->buffer = p;
+            else dernier->suivant = p;
             dernier = p;
         }
-        printf("[RESTORATION] Etat du capteur restauré depuis save.bin\n");
+        printf("[RESTORATION] Etat du capteur restaurer.\n");
     }
-
     fclose(f);
 }
 
@@ -85,7 +78,14 @@ int main() {
     srand(time(NULL));
 
     Capteur c;
-    restaurer_etat(&c);   // restaure l'état précédent si existant
+    restaurer_etat(&c);
+
+    if (c.id_suivant == 1) { // saisie des coordonnées seulement si nouvelle simulation
+        printf("Entrez coordonnee x : ");
+        scanf("%d", &c.x);
+        printf("Entrez coordonnee y : ");
+        scanf("%d", &c.y);
+    }
 
     printf("=================================\n");
     printf("       ECO-SENSING SYSTEM\n");
@@ -93,14 +93,15 @@ int main() {
     printf("Energie initiale : %.2f J\n", c.energie);
     printf("Buffer max       : %d paquets\n\n", MAX_BUFFER);
 
-    /* le programme ne s'arrete que si energie == 0 */
     while (c.energie > 0) {
-
         printf("---------------------------------\n");
         printf("[CAPTEUR] Nouvelle mesure\n");
 
-        Paquet* p = creer_paquet(c.id_suivant++);
-        if (p == NULL) {
+        // calcul distance depuis origine (0,0) → coordonnées choisies par l'utilisateur
+        int distance = (int)sqrt(c.x * c.x + c.y * c.y);
+
+        Paquet* p = creer_paquet(c.id_suivant++, distance);
+        if (!p) {
             printf("Erreur allocation memoire\n");
             break;
         }
@@ -109,41 +110,31 @@ int main() {
 
         ajouter_paquet(&c.buffer, p, &c.taille_buffer);
 
-        /* Transmission avec condition */
-        if (p->distance <= 20) {
-            transmettre_paquet(&c.buffer, &c.taille_buffer, &c.energie);
-        }
+        transmettre_paquet(&c.buffer, &c.taille_buffer, &c.energie);
 
-        // Consommation passive "circuit" (0.05 J par cycle)
+        // consommation passive
         float consommation_passive = 0.05f;
         c.energie -= consommation_passive;
         if (c.energie < 0.0f) c.energie = 0.0f;
 
         printf("Energie restante : %.2f J\n", c.energie);
 
-        // Journalisation dans log.txt
+        // log
         FILE *log = fopen("log.txt", "a");
-        if (log != NULL) {
+        if (log) {
             fprintf(log, "Temps: %ds | Batterie: %.2fJ | Paquets en attente: %d\n",
-                    c.id_suivant - 1,
-                    c.energie,
-                    c.taille_buffer);
+                    c.id_suivant - 1, c.energie, c.taille_buffer);
             fclose(log);
-        } else {
-            printf("Erreur ouverture log.txt\n");
         }
 
-        /* Sauvegarde de l'état après chaque mesure */
         c.termine = 0;
         sauvegarder_etat(&c);
-
-        sleep(1);   // pause de 1 seconde
+        sleep(1);
     }
 
     printf("\nBatterie epuisee.\n");
     printf("Arret du systeme Eco-Sensing.\n");
 
-    /* Marque que le programme s'est terminé normalement */
     c.termine = 1;
     sauvegarder_etat(&c);
 
@@ -152,5 +143,6 @@ int main() {
 
     printf("Nombre total de paquets transmis : %d\n", c.id_suivant - 1);
     printf("Programme termine correctement.\n");
+
     return 0;
 }
