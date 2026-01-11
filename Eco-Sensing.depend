@@ -1,0 +1,13 @@
+# depslib dependency file v1.0
+1768143858 source:c:\users\e-s\documents\eco-sensing\eco-sensing\battery.c
+	"battery.h"
+
+1768143858 c:\users\e-s\documents\eco-sensing\eco-sensing\battery.h
+
+1768143858 source:c:\users\e-s\documents\eco-sensing\eco-sensing\sen.c
+	<stdio.h>
+	<stdlib.h>
+	"sen.h"
+
+1768143858 c:\users\e-s\documents\eco-sensing\eco-sensing\sen.h
+
