@@ -24,7 +24,7 @@ void afficher_paquet(Paquet* p) {
     printf("Distance    : %d m\n", p->distance);
 }
 
-/* Suppression FIFO */
+/* Suppression du plus ancien paquet */
 void supprimer_plus_ancien(Paquet** buffer, int* taille_buffer) {
     if (!*buffer) return;
 
@@ -36,7 +36,7 @@ void supprimer_plus_ancien(Paquet** buffer, int* taille_buffer) {
     (*taille_buffer)--;
 }
 
-/* Ajout dans le buffer */
+/* Ajout de paquet dans le buffer */
 void ajouter_paquet(Paquet** buffer, Paquet* p, int* taille_buffer) {
     if (*taille_buffer >= MAX_BUFFER) {
         supprimer_plus_ancien(buffer, taille_buffer);
@@ -53,7 +53,7 @@ void ajouter_paquet(Paquet** buffer, Paquet* p, int* taille_buffer) {
     printf("Paquet ID %d ajoute au buffer\n", p->id);
 }
 
-/* Transmission aléatoire = consommation d'énergie */
+/* une transmission aléatoire = consommation d'énergie */
 void transmettre_paquet(Paquet** buffer, int* taille_buffer, float* energie) {
     if (!*buffer) return;
 
