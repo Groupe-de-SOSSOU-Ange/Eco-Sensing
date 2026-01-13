@@ -4,17 +4,17 @@
 #include <unistd.h>
 #include "sen.h"
 
-/* Structure Capteur */
+/* Structure du Capteur */
 typedef struct capteur {
     float energie;
     int id_suivant;
     Paquet* buffer;
     int taille_buffer;
     int termine;
-    int x, y; // coordonnées fixes
+    int x, y; // initialisation des  coordonnées de l'emplacement du capteur
 } Capteur;
 
-/* Sauvegarde/restauration */
+/* Sauvegarde et restauration */
 void sauvegarder_etat(Capteur *c) {
     FILE *f = fopen("save.bin", "wb");
     if (!f) return;
@@ -58,7 +58,7 @@ void restaurer_etat(Capteur *c) {
         c->taille_buffer = 0;
         c->buffer = NULL;
         c->termine = 0;
-        printf("[INFO] Redemarrage à zero avec batterie 5 J.\n");
+        printf("[INFO] Redemarrage a zero avec batterie 5 J.\n");
     } else {
         Paquet* dernier = NULL;
         for (int i = 0; i < c->taille_buffer; i++) {
@@ -69,7 +69,7 @@ void restaurer_etat(Capteur *c) {
             else dernier->suivant = p;
             dernier = p;
         }
-        printf("[RESTORATION] Etat du capteur restaurer.\n");
+        printf("[RESTORATION] etat du capteur restaurer.\n");
     }
     fclose(f);
 }
@@ -80,7 +80,7 @@ int main() {
     Capteur c;
     restaurer_etat(&c);
 
-    if (c.id_suivant == 1) { // saisie des coordonnées seulement si nouvelle simulation
+    if (c.id_suivant == 1) { // saisie des coordonnées seulement s'il y a une nouvelle simulation
         printf("Entrez coordonnee x : ");
         scanf("%d", &c.x);
         printf("Entrez coordonnee y : ");
